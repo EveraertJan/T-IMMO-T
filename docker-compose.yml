@@ -1,6 +1,24 @@
 services:
-  immoscrape:
-    build: .
+  scraper:
+    build:
+      context: .
+      dockerfile: Dockerfile.scraper
+    restart: unless-stopped
+    volumes:
+      - immoscrape-data:/app/data
+    env_file:
+      - .env
+    environment:
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -8,8 +26,12 @@ services:
       - immoscrape-data:/app/data
     env_file:
       - .env
-    environment:
-      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    depends_on:
+      - scraper
 
 volumes:
   immoscrape-data:

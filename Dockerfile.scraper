@@ -1,0 +1,31 @@
+# ── Build stage: compile native modules ──────────────────────────────────────
+FROM node:20-bookworm-slim AS builder
+
+RUN apt-get update && apt-get install -y \
+    python3 make g++ \
+    --no-install-recommends \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# ── Runtime stage: chromium only, no build tools ──────────────────────────────
+FROM node:20-bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    chromium \
+    --no-install-recommends \
+  && rm -rf /var/lib/apt/lists/*
+
+ENV NODE_ENV=production \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+WORKDIR /app
+COPY --from=builder /app/node_modules ./node_modules
+COPY src/ ./src/
+COPY config.json ./
+RUN mkdir -p /app/data
+
+CMD ["node", "src/scraper.js"]

@@ -45,7 +45,7 @@ function locationMatches(location) {
   return LOCATIONS.some(l => loc.includes(l.toLowerCase()));
 }
 
-async function enrichWithDetails(listings, fetchDetail, batchSize = 5) {
+async function enrichWithDetails(listings, fetchDetail, batchSize = 2) {
   for (let i = 0; i < listings.length; i += batchSize) {
     const batch   = listings.slice(i, i + batchSize);
     const details = await Promise.all(batch.map(l => fetchDetail(l.url)));

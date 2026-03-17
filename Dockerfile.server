@@ -1,0 +1,23 @@
+# ── Build stage: compile better-sqlite3 native addon ─────────────────────────
+FROM node:20-alpine AS builder
+
+RUN apk add --no-cache python3 make g++
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# ── Runtime stage: minimal alpine, no build tools ─────────────────────────────
+FROM node:20-alpine
+
+ENV NODE_ENV=production
+
+WORKDIR /app
+COPY --from=builder /app/node_modules ./node_modules
+COPY src/ ./src/
+COPY public/ ./public/
+COPY config.json ./
+RUN mkdir -p /app/data
+
+EXPOSE 3000
+CMD ["node", "src/server.js"]
