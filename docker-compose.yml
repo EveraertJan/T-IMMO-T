@@ -1,0 +1,15 @@
+services:
+  immoscrape:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - immoscrape-data:/app/data
+    env_file:
+      - .env
+    environment:
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+
+volumes:
+  immoscrape-data:

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>immoscrape</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; font-size: 14px; color: #222; background: #f5f5f5; }
+    header { background: #1a1a2e; color: #fff; padding: 16px 24px; }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    #qr-section { padding: 16px 24px; display: flex; align-items: center; gap: 12px; background: #fff3cd; border-bottom: 1px solid #ffc107; }
+    #qr-section img { width: 160px; height: 160px; border: 1px solid #ccc; }
+    #qr-section p { color: #664d03; font-size: 13px; }
+    nav { display: flex; gap: 0; background: #fff; border-bottom: 2px solid #ddd; padding: 0 24px; }
+    nav button { padding: 12px 20px; border: none; background: none; cursor: pointer; font-size: 14px; font-weight: 500; color: #666; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+    nav button.active { color: #1a1a2e; border-bottom-color: #1a1a2e; }
+    main { padding: 24px; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    .count { color: #666; font-size: 13px; margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    th { background: #f0f0f0; text-align: left; padding: 10px 12px; font-weight: 600; font-size: 12px; text-transform: uppercase; color: #555; white-space: nowrap; }
+    td { padding: 9px 12px; border-top: 1px solid #eee; vertical-align: middle; }
+    tr.matched { background: #f0fff4; }
+    tr.dismissed-row { opacity: .55; }
+    tr:hover td { background: #fafafa; }
+    tr.matched:hover td { background: #e6ffed; }
+    a { color: #0066cc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .empty { text-align: center; color: #999; padding: 40px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge-match { background: #d4edda; color: #155724; }
+    .badge-skip  { background: #e2e3e5; color: #383d41; }
+    .btn-dismiss { padding: 3px 10px; font-size: 11px; font-weight: 600; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #666; cursor: pointer; white-space: nowrap; }
+    .btn-dismiss:hover { background: #fee2e2; border-color: #f87171; color: #b91c1c; }
+    td.editable { cursor: text; }
+    td.editable:hover { background: #fffbe6 !important; }
+    td.editable input { width: 100%; border: 1px solid #4a90d9; border-radius: 3px; padding: 2px 5px; font: inherit; font-size: 13px; outline: none; background: #fff; }
+    td.saving { opacity: .5; }
+    td.save-ok { background: #d4edda !important; transition: background .8s; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>immoscrape</h1>
+</header>
+
+<div id="qr-section" style="display:none">
+  <img id="qr-img" src="" alt="WhatsApp QR">
+  <p>Scan deze QR-code met WhatsApp om te verbinden.<br>De code verdwijnt automatisch na authenticatie.</p>
+</div>
+
+<nav>
+  <button class="active" onclick="switchTab('matches', this)">Matches</button>
+  <button onclick="switchTab('all', this)">Alle listings</button>
+  <button onclick="switchTab('dismissed', this)">Afgewezen</button>
+</nav>
+
+<main>
+  <div id="tab-matches" class="tab active">
+    <p class="count" id="count-matches"></p>
+    <table id="table-matches"><thead><tr>
+      <th>Vendor</th><th>Titel</th><th>Prijs</th><th>Kamers</th><th>Opp.</th><th>EPC</th><th>kWh/m²</th><th>Locatie</th><th>Postcode</th><th>Gezien</th><th>Link</th><th></th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <div id="tab-all" class="tab">
+    <p class="count" id="count-all"></p>
+    <table id="table-all"><thead><tr>
+      <th>Vendor</th><th>Titel</th><th>Prijs</th><th>Kamers</th><th>Opp.</th><th>EPC</th><th>kWh/m²</th><th>Locatie</th><th>Postcode</th><th>Gezien</th><th>Link</th><th></th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <div id="tab-dismissed" class="tab">
+    <p class="count" id="count-dismissed"></p>
+    <table id="table-dismissed"><thead><tr>
+      <th>Vendor</th><th>Titel</th><th>Prijs</th><th>Kamers</th><th>Opp.</th><th>EPC</th><th>kWh/m²</th><th>Locatie</th><th>Postcode</th><th>Gezien</th><th>Link</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+</main>
+
+<script>
+const fmt = {
+  price: v => v ? new Intl.NumberFormat('nl-BE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v) : '—',
+  date:  v => v ? new Intl.DateTimeFormat('nl-BE', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(v)) : '—',
+  num:   v => v || '—',
+};
+
+const EPC_COLOURS = { 'A+': '#00853e', A: '#50ae31', B: '#b5cc2e', C: '#fef200', D: '#f8a900', E: '#f07100', F: '#e2001a', G: '#a50a0a' };
+
+function epcBadge(epc, kwh) {
+  if (!epc) return '—';
+  const bg  = EPC_COLOURS[epc] || '#999';
+  const fg  = ['A+','A','B'].includes(epc) ? '#fff' : '#111';
+  const tip = kwh ? ` title="${kwh} kWh/m²"` : '';
+  return `<span class="badge"${tip} style="background:${bg};color:${fg}">${epc}</span>`;
+}
+
+function makeEditableTd(l, field, displayFn) {
+  const td = document.createElement('td');
+  td.className = 'editable';
+  td.dataset.field = field;
+  td.dataset.vendor = l.vendor;
+  td.dataset.id = l.id;
+
+  function showDisplay(value) {
+    td.textContent = '';
+    td.innerHTML = displayFn(value);
+  }
+
+  showDisplay(l[field]);
+
+  td.addEventListener('click', () => {
+    if (td.querySelector('input')) return;
+    const current = l[field];
+    const input = document.createElement('input');
+    input.value = current != null ? current : '';
+    td.textContent = '';
+    td.appendChild(input);
+    input.focus();
+    input.select();
+
+    async function save() {
+      const raw = input.value.trim();
+      const numeric = ['price', 'rooms', 'surface', 'kwh'];
+      const newVal = raw === '' ? null : (numeric.includes(field) ? Number(raw) : raw);
+      if (newVal === current || (raw === '' && current == null) || String(newVal) === String(current)) {
+        showDisplay(l[field]);
+        return;
+      }
+      td.classList.add('saving');
+      const res = await fetch('/api/listings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vendor: l.vendor, id: l.id, field, value: newVal }),
+      });
+      td.classList.remove('saving');
+      if (res.ok) {
+        l[field] = newVal;
+        showDisplay(l[field]);
+        td.classList.add('save-ok');
+        setTimeout(() => td.classList.remove('save-ok'), 900);
+      } else {
+        showDisplay(l[field]);
+      }
+    }
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      if (e.key === 'Escape') { showDisplay(l[field]); }
+    });
+  });
+
+  return td;
+}
+
+function row(l, showBadge = false, dismissable = false) {
+  const tr = document.createElement('tr');
+  if (l.matched) tr.classList.add('matched');
+
+  // Non-editable cells
+  const tdVendor = document.createElement('td');
+  tdVendor.textContent = l.vendor;
+  tr.appendChild(tdVendor);
+
+  // Title (editable) + optional badge
+  const tdTitle = makeEditableTd(l, 'title', v => {
+    const badge = showBadge ? ` <span class="badge ${l.matched ? 'badge-match' : 'badge-skip'}">${l.matched ? 'match' : 'skip'}</span>` : '';
+    return (v || '—') + badge;
+  });
+  tr.appendChild(tdTitle);
+
+  tr.appendChild(makeEditableTd(l, 'price',   v => fmt.price(v)));
+  tr.appendChild(makeEditableTd(l, 'rooms',   v => fmt.num(v)));
+  tr.appendChild(makeEditableTd(l, 'surface', v => v ? v + ' m²' : '—'));
+  tr.appendChild(makeEditableTd(l, 'epc',     v => epcBadge(v, l.kwh)));
+  tr.appendChild(makeEditableTd(l, 'kwh',     v => fmt.num(v)));
+  tr.appendChild(makeEditableTd(l, 'location',    v => v || '—'));
+  tr.appendChild(makeEditableTd(l, 'postal_code', v => v || '—'));
+
+  const tdDate = document.createElement('td');
+  tdDate.textContent = fmt.date(l.seen_at);
+  tr.appendChild(tdDate);
+
+  const tdUrl = document.createElement('td');
+  tdUrl.innerHTML = l.url ? `<a href="${l.url}" target="_blank" rel="noopener">open</a>` : '—';
+  tr.appendChild(tdUrl);
+
+  if (dismissable) {
+    const td  = document.createElement('td');
+    const btn = document.createElement('button');
+    btn.className   = 'btn-dismiss';
+    btn.textContent = 'Afwijzen';
+    btn.onclick = () => dismiss(l.vendor, l.id, tr);
+    td.appendChild(btn);
+    tr.appendChild(td);
+  }
+  return tr;
+}
+
+async function dismiss(vendor, id, tr) {
+  await fetch('/api/listings/dismiss', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ vendor, id }),
+  });
+  tr.classList.add('dismissed-row');
+  tr.querySelector('.btn-dismiss').disabled = true;
+  // Move to dismissed tab after a short visual delay
+  setTimeout(() => {
+    tr.remove();
+    updateCount('table-matches', 'count-matches');
+    updateCount('table-all',     'count-all');
+    appendToDismissed(vendor, id);
+  }, 400);
+}
+
+function updateCount(tableId, countId) {
+  const n = document.querySelectorAll(`#${tableId} tbody tr:not(.empty-row)`).length;
+  document.getElementById(countId).textContent = `${n} listing${n !== 1 ? 's' : ''}`;
+}
+
+async function appendToDismissed(vendor, id) {
+  const listings = await fetch('/api/listings/dismissed').then(r => r.json());
+  const l = listings.find(x => x.vendor === vendor && x.id === id);
+  if (!l) return;
+  const tbody = document.querySelector('#table-dismissed tbody');
+  // Remove empty-state row if present
+  tbody.querySelector('.empty-row')?.remove();
+  tbody.appendChild(row(l, false, false));
+  updateCount('table-dismissed', 'count-dismissed');
+}
+
+function render(tableId, countId, listings, showBadge = false, dismissable = false) {
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  tbody.innerHTML = '';
+  if (!listings.length) {
+    const tr = document.createElement('tr');
+    tr.className = 'empty-row';
+    tr.innerHTML = `<td colspan="${dismissable ? 12 : 11}" class="empty">Geen listings gevonden.</td>`;
+    tbody.appendChild(tr);
+    document.getElementById(countId).textContent = '0 listings';
+    return;
+  }
+  document.getElementById(countId).textContent = `${listings.length} listing${listings.length !== 1 ? 's' : ''}`;
+  listings.forEach(l => tbody.appendChild(row(l, showBadge, dismissable)));
+}
+
+async function load() {
+  const [matched, all, dismissed] = await Promise.all([
+    fetch('/api/listings/matched').then(r => r.json()),
+    fetch('/api/listings/all').then(r => r.json()),
+    fetch('/api/listings/dismissed').then(r => r.json()),
+  ]);
+  render('table-matches',   'count-matches',   matched,   false, true);
+  render('table-all',       'count-all',       all,       true,  true);
+  render('table-dismissed', 'count-dismissed', dismissed, false, false);
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  btn.classList.add('active');
+}
+
+// QR auto-refresh
+function loadQR() {
+  const img = document.getElementById('qr-img');
+  const sec = document.getElementById('qr-section');
+  img.src = `/api/whatsapp-qr?t=${Date.now()}`;
+  img.onload  = () => { sec.style.display = 'flex'; setTimeout(loadQR, 5000); };
+  img.onerror = () => { sec.style.display = 'none'; setTimeout(loadQR, 5000); };
+}
+
+load();
+loadQR();
+</script>
+</body>
+</html>

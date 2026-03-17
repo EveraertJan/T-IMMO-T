@@ -1,0 +1,21 @@
+{
+  "criteria": {
+    "minPrice": 450000,
+    "maxPrice": 650000,
+    "minRooms": 3,
+    "minSurface": 140,
+    "EPC": "D",
+    "locations": ["9000", "9030", "9040", "9820"]
+  },
+  "connectors": {
+    "immodavinci":    { "enabled": true },
+    "dewaele":        { "enabled": true },
+    "vastgoedpoppe":  { "enabled": true },
+    "immot":          { "enabled": true },
+    "immozone":       { "enabled": true },
+    "immodesmet":     { "enabled": true },
+    "ingimmo":        { "enabled": true },
+    "huysewinkel":    { "enabled": true },
+    "immodelestre":   { "enabled": true }
+  }
+}
