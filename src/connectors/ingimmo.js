@@ -12,7 +12,6 @@ async function fetchDetail(url) {
     const $ = cheerio.load(data);
 
     let kwh =  $("td:contains('Totaal verbruik:')").next().text().replace(" kWh/(m² jaar)", "").split(",")[0].trim();
-    console.log(kwh);
     if(kwh == 0) {
       //
       kwh =  $("td:contains('EPC Index:')").next().text().replace(" kWh/(m² jaar)", "").split(",")[0].trim();
