@@ -145,11 +145,11 @@ async function main() {
 
   // Schedule: every hour on the hour
   // For testing, change to '* * * * *' (every minute)
-  cron.schedule('0 * * * *', () => {
+  cron.schedule('*/10 * * * *', () => {
     runScrape().catch(err => console.error(`${ts()} runScrape error:`, err));
   });
 
-  console.log(`${ts()} Cron scheduled (0 * * * *). Running initial scrape now…`);
+  console.log(`${ts()} Cron scheduled (*/10 * * * *). Running initial scrape now…`);
   await runScrape();
 }
 
