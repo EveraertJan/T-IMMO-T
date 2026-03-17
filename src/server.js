@@ -41,3 +41,6 @@ function start(port = process.env.PORT || 3000) {
 }
 
 module.exports = { start };
+
+// Run directly (Docker entrypoint)
+if (require.main === module) start();

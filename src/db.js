@@ -45,8 +45,10 @@ db.exec(`
 `);
 
 // Migrate existing databases
-try { db.exec(`ALTER TABLE listings ADD COLUMN dismissed   INTEGER NOT NULL DEFAULT 0`); } catch (_) {}
+try { db.exec(`ALTER TABLE listings ADD COLUMN dismissed   INTEGER NOT NULL DEFAULT 0`);  } catch (_) {}
 try { db.exec(`ALTER TABLE listings ADD COLUMN postal_code TEXT    NOT NULL DEFAULT ''`); } catch (_) {}
+try { db.exec(`ALTER TABLE listings ADD COLUMN epc         TEXT    NOT NULL DEFAULT ''`); } catch (_) {}
+try { db.exec(`ALTER TABLE listings ADD COLUMN kwh         INTEGER NOT NULL DEFAULT 0`);  } catch (_) {}
 
 // Backfill postal_code from existing location values
 {
