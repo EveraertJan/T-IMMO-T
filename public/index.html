@@ -56,6 +56,7 @@
   <button class="active" onclick="switchTab('matches', this)">Matches</button>
   <button onclick="switchTab('all', this)">Alle listings</button>
   <button onclick="switchTab('dismissed', this)">Afgewezen</button>
+  <button onclick="switchTab('logs', this)">Logs</button>
 </nav>
 
 <main>
@@ -77,6 +78,13 @@
     <p class="count" id="count-dismissed"></p>
     <table id="table-dismissed"><thead><tr>
       <th>Vendor</th><th>Titel</th><th>Prijs</th><th>Kamers</th><th>Opp.</th><th>EPC</th><th>kWh/m²</th><th>Locatie</th><th>Postcode</th><th>Gezien</th><th>Link</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <div id="tab-logs" class="tab">
+    <p class="count" id="count-logs"></p>
+    <table id="table-logs"><thead><tr>
+      <th>Tijdstip</th><th>Nieuwe items</th><th>Matches</th>
     </tr></thead><tbody></tbody></table>
   </div>
 </main>
@@ -249,15 +257,44 @@ function render(tableId, countId, listings, showBadge = false, dismissable = fal
   listings.forEach(l => tbody.appendChild(row(l, showBadge, dismissable)));
 }
 
+function renderLogs(logs) {
+  const tbody = document.querySelector('#table-logs tbody');
+  tbody.innerHTML = '';
+  document.getElementById('count-logs').textContent = `${logs.length} scrape${logs.length !== 1 ? 's' : ''}`;
+  if (!logs.length) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="3" class="empty">Nog geen scrapes uitgevoerd.</td></tr>`;
+    return;
+  }
+  for (const log of logs) {
+    const tr = document.createElement('tr');
+    const tdDate = document.createElement('td');
+    tdDate.textContent = fmt.date(log.ran_at);
+    const tdItems = document.createElement('td');
+    tdItems.textContent = log.new_items;
+    const tdMatches = document.createElement('td');
+    if (log.new_matches > 0) {
+      tdMatches.innerHTML = `<span class="badge badge-match">${log.new_matches}</span>`;
+    } else {
+      tdMatches.textContent = '0';
+    }
+    tr.appendChild(tdDate);
+    tr.appendChild(tdItems);
+    tr.appendChild(tdMatches);
+    tbody.appendChild(tr);
+  }
+}
+
 async function load() {
-  const [matched, all, dismissed] = await Promise.all([
+  const [matched, all, dismissed, logs] = await Promise.all([
     fetch('/api/listings/matched').then(r => r.json()),
     fetch('/api/listings/all').then(r => r.json()),
     fetch('/api/listings/dismissed').then(r => r.json()),
+    fetch('/api/logs').then(r => r.json()),
   ]);
   render('table-matches',   'count-matches',   matched,   false, true);
   render('table-all',       'count-all',       all,       true,  true);
   render('table-dismissed', 'count-dismissed', dismissed, false, false);
+  renderLogs(logs);
 }
 
 function switchTab(name, btn) {

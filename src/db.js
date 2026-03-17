@@ -35,6 +35,15 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS scrape_logs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    ran_at      INTEGER NOT NULL,
+    new_items   INTEGER NOT NULL DEFAULT 0,
+    new_matches INTEGER NOT NULL DEFAULT 0
+  )
+`);
+
 // Migrate existing databases
 try { db.exec(`ALTER TABLE listings ADD COLUMN dismissed   INTEGER NOT NULL DEFAULT 0`); } catch (_) {}
 try { db.exec(`ALTER TABLE listings ADD COLUMN postal_code TEXT    NOT NULL DEFAULT ''`); } catch (_) {}
@@ -117,4 +126,15 @@ function updateListing(vendor, id, field, value) {
   getUpdateStmt(field).run(value, vendor, id);
 }
 
-module.exports = { isNew, markSeen, saveListing, getAll, getMatched, getDismissed, dismiss, updateListing };
+const stmtLogScrape = db.prepare(`INSERT INTO scrape_logs (ran_at, new_items, new_matches) VALUES (?, ?, ?)`);
+const stmtGetLogs   = db.prepare(`SELECT * FROM scrape_logs ORDER BY ran_at DESC LIMIT 200`);
+
+function logScrape(newItems, newMatches) {
+  stmtLogScrape.run(Date.now(), newItems, newMatches);
+}
+
+function getLogs() {
+  return stmtGetLogs.all();
+}
+
+module.exports = { isNew, markSeen, saveListing, getAll, getMatched, getDismissed, dismiss, updateListing, logScrape, getLogs };

@@ -39,7 +39,8 @@ async function runScrape() {
     enabledConnectors.map(name => connectors[name].scrape())
   );
 
-  let newCount = 0;
+  let newItems   = 0;
+  let newMatches = 0;
 
   for (let i = 0; i < enabledConnectors.length; i++) {
     const name   = enabledConnectors[i];
@@ -59,16 +60,18 @@ async function runScrape() {
       if (matched) {
         console.log(`${ts()} MATCH ${listing.vendor}/${listing.id} — ${listing.title} — €${listing.price}`);
         await notifier.notify(listing);
-        newCount++;
+        newMatches++;
       } else {
         console.log(`${ts()} skip  ${listing.vendor}/${listing.id} (filtered out)`);
       }
 
       db.saveListing(listing, matched);
+      newItems++;
     }
   }
 
-  console.log(`${ts()} Scrape cycle done. ${newCount} new matching listing(s) notified.`);
+  db.logScrape(newItems, newMatches);
+  console.log(`${ts()} Scrape cycle done. ${newItems} new item(s), ${newMatches} match(es)`);
 }
 
 function clearChromiumLocks(dataPath) {

@@ -27,6 +27,8 @@ app.post('/api/listings/dismiss', (req, res) => {
   db.dismiss(vendor, id);
   res.json({ ok: true });
 });
+app.get('/api/logs', (req, res) => res.json(db.getLogs()));
+
 app.get('/api/whatsapp-qr', (req, res) => {
   res.sendFile(
     path.join(__dirname, '..', 'data', 'whatsapp-qr.png'),
